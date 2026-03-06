@@ -1,3 +1,4 @@
+export PATH := $(PATH):C:/msys64/mingw64/bin
 all:
 	-@quarto render
 
