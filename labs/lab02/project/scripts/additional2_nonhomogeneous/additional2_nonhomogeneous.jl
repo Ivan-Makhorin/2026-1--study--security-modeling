@@ -1,0 +1,24 @@
+using DrWatson
+@quickactivate "project"
+using Plots, Statistics
+
+include(srcdir("simulation_ext.jl"))
+
+λ_func(t) = 2 + 5*sin(π*t/12)
+T = 24.0
+
+events = simulate_nonhomogeneous_poisson(λ_func, T)
+
+#= Почасовое число атак =#
+hourly_counts = count_events_in_windows(events, 1.0, T)
+
+#= Визуализация =#
+p1 = plot(0:0.1:T, λ_func.(0:0.1:T), label="λ(t)", xlabel="Время (ч)", ylabel="Интенсивность")
+p2 = histogram(hourly_counts, bins=0:maximum(hourly_counts), label="Эмпирическая",
+               xlabel="Число атак за час", ylabel="Частота")
+p3 = plot(events, 1:length(events), label="Реализация", xlabel="Время (ч)", ylabel="Накопленное число атак")
+
+plot(p1, p2, p3, layout=(3,1), size=(800,900))
+savefig(plotsdir("nonhomogeneous.png"))
+println("Сгенерировано событий: ", length(events))
+println("График сохранён в plots/nonhomogeneous.png")
