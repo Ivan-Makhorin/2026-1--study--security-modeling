@@ -1,0 +1,38 @@
+# # Вероятности редких событий
+# 
+# Вычисляем теоретические и эмпирические вероятности:
+# - ни одной атаки за 8-часовую смену
+# - не менее 3 атак за 30 минут
+# 
+
+using DrWatson
+@quickactivate "project"
+using Distributions, RollingFunctions
+
+include(srcdir("simulation.jl"))
+
+λ = 5.0
+T = 24.0
+n_sim = 10000   #= число симуляций суток =#
+
+#= Теоретические значения =#
+P0_8h_theor = exp(-λ * 8)
+P3_30min_theor = 1 - cdf(Poisson(λ*0.5), 2)
+
+#= Эмпирические оценки =#
+hourly_mat = rand(Poisson(λ), (n_sim, 24))   #= n_sim строк по 24 часа =#
+
+#= 0 атак за 8 часов (скользящие суммы по 8 часов) =#
+windows_8h = mapslices(x -> [sum(x[i:i+7]) for i in 1:17], hourly_mat, dims=2)
+P0_8h_emp = mean(vec(windows_8h) .== 0)
+
+#= ≥3 атак за 30 минут (0.5 часа) =#
+half_hour_counts = rand(Poisson(λ*0.5), n_sim * 48)
+P3_30min_emp = mean(half_hour_counts .>= 3)
+
+println("--- Вероятность 0 атак за 8 часов ---")
+println("Теоретическая: ", P0_8h_theor)
+println("Эмпирическая:  ", P0_8h_emp)
+println("\n--- Вероятность ≥3 атак за 30 минут ---")
+println("Теоретическая: ", P3_30min_theor)
+println("Эмпирическая:  ", P3_30min_emp)
