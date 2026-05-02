@@ -1,0 +1,56 @@
+# # Исследование масштабируемости поиска путей
+#
+# **Цель**: оценить, как размер сети влияет на время поиска всех путей и на их количество.
+
+# ## Загрузка пакетов и модулей
+using DrWatson
+@quickactivate "project"
+using Graphs, Plots, JLD2, Random
+
+include(srcdir("attack_graph.jl"))
+
+# ## Размеры сети
+sizes = [10, 15, 20, 21, 22, 23, 24, 25]
+time_vals = Float64[]
+path_counts = Int[]
+
+Random.seed!(123)
+
+# ## Измерение времени для каждого размера
+for n in sizes
+    println("Размер сети: $n")
+    g = build_attack_graph(n, 0.2, Dict(), [])
+    t = @elapsed paths = find_all_paths(g, 1, n)
+    push!(time_vals, t)
+    push!(path_counts, length(paths))
+    println("   Время: $(round(t, digits=3)) с, путей: $(length(paths))")
+end
+
+# ## График времени
+p1 = plot(
+    sizes, time_vals,
+    marker = :circle,
+    xlabel = "Число узлов",
+    ylabel = "Время (с)",
+    title = "Время поиска всех путей",
+    legend = false,
+)
+
+# ## График количества путей
+p2 = plot(
+    sizes, path_counts,
+    marker = :circle,
+    xlabel = "Число узлов",
+    ylabel = "Количество путей",
+    title = "Количество путей атаки",
+    legend = false,
+)
+combined = plot(p1, p2, layout = (2, 1), size = (800, 600))
+savefig(combined, plotsdir("convergence.png"))
+println("График сохранён в plots/convergence.png")
+
+# ## Сохранение данных
+# Создаём папку, если её нет
+mkpath(datadir("convergence"))
+data = Dict(:sizes => sizes, :times => time_vals, :path_counts => path_counts)
+@save datadir("convergence", "convergence_data.jld2") data

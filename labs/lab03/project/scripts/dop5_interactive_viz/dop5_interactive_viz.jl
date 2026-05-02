@@ -1,0 +1,27 @@
+using DrWatson
+@quickactivate "project"
+using Graphs, JLD2, Plots, GraphRecipes
+gr()
+
+include(srcdir("attack_graph.jl"))
+
+params = Dict(:n => 20, :edge_prob => 0.2, :source => 1, :target => 20)
+filename = datadir("attack_graph", savename(params, "jld2"))
+@load filename data
+g = data[:graph]
+pr = data[:metrics][:pagerank]
+
+norm_rank = (pr .- minimum(pr)) ./ (maximum(pr) - minimum(pr))
+colors = [cgrad(:RdYlGn, rev=true)[norm_rank[i]] for i in 1:nv(g)]
+
+p = graphplot(g,
+              nodeshape = :circle,
+              curves = false,
+              linecolor = :black,
+              nodecolor = colors,
+              nodelabel = 1:nv(g),
+              title = "Интерактивный граф атак (цвет = PageRank)",
+              size = (800,600))
+
+savefig(p, plotsdir("attack_graph_interactive.html"))
+println("Интерактивный граф сохранён в plots/attack_graph_interactive.html")
