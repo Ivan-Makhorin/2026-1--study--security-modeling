@@ -1,0 +1,63 @@
+# Сравнение метрик центральности
+
+Вычисляются in-degree, между-посредничество (betweenness), близость (closeness)
+и PageRank. Для каждого узла выводится ранг по каждой метрике и строится
+тепловая карта корреляции рангов.
+
+## Инициализация
+
+```{julia}
+using DrWatson
+@quickactivate "project"
+using Graphs, Plots, Statistics, Random
+
+include(srcdir("attack_graph.jl"))
+```
+
+## Построение графа
+
+```{julia}
+n = 20
+Random.seed!(42)
+g = build_attack_graph(n, 0.2, Dict(), [(2,7), (5,12)])
+metrics = compute_centrality_metrics(g)
+```
+
+## Ранжирование узлов (1 – самый высокий ранг)
+
+```{julia}
+function rank_vector(v)
+    return invperm(sortperm(v, rev=true))
+end
+
+ranks = (
+    indeg     = rank_vector(metrics[:in_degree]),
+    between   = rank_vector(metrics[:betweenness]),
+    closeness = rank_vector(metrics[:closeness]),
+    pagerank  = rank_vector(metrics[:pagerank])
+)
+```
+
+Вывод таблицы
+
+```{julia}
+println("Узел | in-deg(ранг) | between(ранг) | close(ранг) | PageRank(ранг)")
+for i in 1:n
+    println("$i \t| $(ranks.indeg[i]) \t\t| $(ranks.between[i]) \t\t| $(ranks.closeness[i]) \t\t| $(ranks.pagerank[i])")
+end
+```
+
+## Тепловая карта корреляции рангов Спирмена
+
+```{julia}
+using StatsBase
+rank_matrix = hcat(ranks.indeg, ranks.between, ranks.closeness, ranks.pagerank)
+cor_matrix = corspearman(rank_matrix)
+heatmap(["in-deg","between","close","pagerank"],
+        ["in-deg","between","close","pagerank"],
+        cor_matrix, aspect_ratio=:equal, color=:coolwarm,
+        title="Корреляция рангов метрик центральности")
+savefig(plotsdir("centrality_corr.png"))
+println("Тепловая карта сохранена в plots/centrality_corr.png")
+```
+

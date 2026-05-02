@@ -1,0 +1,65 @@
+# Оценка эффективности изоляции критического узла
+
+Вычисляется betweenness centrality, выбирается узел с максимальным значением,
+удаляется из графа (удаляются все инцидентные рёбра). Сравнивается количество
+путей атаки до и после изоляции.
+
+%% Инициализация и расчёт
+
+```{julia}
+using DrWatson
+@quickactivate "project"
+using Graphs, Plots, Random
+
+include(srcdir("attack_graph.jl"))
+```
+
+Параметры и построение графа
+
+```{julia}
+n = 20
+Random.seed!(42)
+g_orig = build_attack_graph(n, 0.2, Dict(), [(2,7), (5,12)])
+source, target = 1, n
+
+paths_before = find_all_paths(g_orig, source, target)
+println("Путей до изоляции: ", length(paths_before))
+```
+
+Определение критического узла
+
+```{julia}
+metrics = compute_centrality_metrics(g_orig)
+node_to_isolate = argmax(metrics[:betweenness])
+println("Изолируем узел: ", node_to_isolate)
+```
+
+Создание нового графа без выбранного узла
+
+```{julia}
+vertices = setdiff(1:nv(g_orig), [node_to_isolate])
+old2new = Dict(v => i for (i, v) in enumerate(sort(collect(vertices))))
+newg = SimpleDiGraph(length(vertices))
+for e in edges(g_orig)
+    if src(e) != node_to_isolate && dst(e) != node_to_isolate
+        add_edge!(newg, old2new[src(e)], old2new[dst(e)])
+    end
+end
+new_source = old2new[source]
+new_target = old2new[target]
+
+paths_after = find_all_paths(newg, new_source, new_target)
+println("Путей после изоляции: ", length(paths_after))
+reduction = 100 * (1 - length(paths_after) / length(paths_before))
+println("Снижение числа путей: ", round(reduction, digits=1), "%")
+```
+
+%% Визуализация эффекта
+
+```{julia}
+bar(["До изоляции", "После изоляции"], [length(paths_before), length(paths_after)],
+    legend=false, ylabel="Количество путей", title="Эффект изоляции узла $node_to_isolate")
+savefig(plotsdir("isolation_effect.png"))
+println("График сохранён в plots/isolation_effect.png")
+```
+

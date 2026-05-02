@@ -1,0 +1,36 @@
+using DrWatson
+@quickactivate "project"
+using Graphs, Plots, Statistics, Random
+
+include(srcdir("attack_graph.jl"))
+
+n = 20
+Random.seed!(42)
+g = build_attack_graph(n, 0.2, Dict(), [(2,7), (5,12)])
+metrics = compute_centrality_metrics(g)
+
+function rank_vector(v)
+    return invperm(sortperm(v, rev=true))
+end
+
+ranks = (
+    indeg     = rank_vector(metrics[:in_degree]),
+    between   = rank_vector(metrics[:betweenness]),
+    closeness = rank_vector(metrics[:closeness]),
+    pagerank  = rank_vector(metrics[:pagerank])
+)
+
+println("Узел | in-deg(ранг) | between(ранг) | close(ранг) | PageRank(ранг)")
+for i in 1:n
+    println("$i \t| $(ranks.indeg[i]) \t\t| $(ranks.between[i]) \t\t| $(ranks.closeness[i]) \t\t| $(ranks.pagerank[i])")
+end
+
+using StatsBase
+rank_matrix = hcat(ranks.indeg, ranks.between, ranks.closeness, ranks.pagerank)
+cor_matrix = corspearman(rank_matrix)
+heatmap(["in-deg","between","close","pagerank"],
+        ["in-deg","between","close","pagerank"],
+        cor_matrix, aspect_ratio=:equal, color=:coolwarm,
+        title="Корреляция рангов метрик центральности")
+savefig(plotsdir("centrality_corr.png"))
+println("Тепловая карта сохранена в plots/centrality_corr.png")
